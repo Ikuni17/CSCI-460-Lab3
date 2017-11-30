@@ -6,22 +6,31 @@ December 2, 2017
 
 Interpreter: Python 3.6.3
 Inputs: None
-Outputs: Writes to console
+Outputs: Console
 '''
 
 import random
 
 
+# Class which handles a priority job system
 class Job():
     def __init__(self, type, arrival_time, buffer):
+        # The jobs type, can be 1,2,3
         self.type = type
+        # A jobs priority, can be 3,2,1
         self.priority = self.set_priority(type)
+        # Keep track if this job has finished
         self.finished = False
+        # When this job will arrive
         self.arrival_time = arrival_time
+        # Shared buffer reference between type 1 and 3 jobs
         self.buffer = buffer
+        # This jobs current position in the buffer
         self.buffer_pos = 0
+        # Current status if this is a type 2 job
         self.t2_status = ''
 
+    # Helper to set the correct priority based on a jobs type
     def set_priority(self, type):
         if type == 1:
             return 3
@@ -30,6 +39,7 @@ class Job():
         elif type == 3:
             return 1
 
+    # Update the buffer or status depending on the job type
     def update(self):
         if self.type == 1:
             self.buffer[self.buffer_pos] = 1
@@ -40,9 +50,11 @@ class Job():
             self.buffer[self.buffer_pos] = 3
             self.buffer_pos += 1
 
+        # If we reached the end of the buffer or checking all status' this job is finished
         if self.buffer_pos == 3 or len(self.t2_status) == 10:
             self.finished = True
 
+    # Join the buffer into a string and print its current value
     def print_buffer(self):
         if self.type == 1 or self.type == 3:
             temp = ''.join(str(x) for x in self.buffer)
@@ -70,11 +82,15 @@ def random_jobs(n, max_arrival):
     return jobs
 
 
+# Algorithm to handle processing jobs based on priority, preempts if necessary
 def process_jobs(jobs):
     # T1 and T3 buffer
     buffer = [0, 0, 0]
+    # Beginning stack of all jobs, the type: comment below is for IDE code completion
     job_stack = []  # type: list[Job]
+    # Jobs which are preempt are pushed onto this stack
     preempt_stack = []  # type: list[Job]
+    # Jobs which are lower priority than the current job are pushed into the queue, sorted by priority
     arrival_queue = []  # type: list[Job]
 
     # Create a job object for each job
@@ -83,14 +99,12 @@ def process_jobs(jobs):
 
     # Reverse them so it becomes a stack
     job_stack.sort(key=lambda x: x.arrival_time, reverse=True)
-    # for thing in job_stack:
-    #    print(thing.arrival_time, thing.type)
 
-    # Skip to the first job
+    # Skip to the first job's arrival time
     current_job = job_stack.pop()
     time = current_job.arrival_time
 
-    # Make sure all jobs are completed
+    # Make sure all jobs are completed before exiting
     while len(job_stack) > 0 or len(preempt_stack) > 0 or len(arrival_queue) > 0:
         # Handle a new job if it arrived
         if len(job_stack) > 0 and time == job_stack[len(job_stack) - 1].arrival_time:
@@ -102,21 +116,27 @@ def process_jobs(jobs):
                 print("Time {0}, Preempting T{1} with T{2}, Buffer: ".format(time, current_job.type, arrived_job.type),
                       end='')
                 current_job.print_buffer()
-                # Switch the jobs
+                # Switch the jobs and put the old job on a separate stack
                 preempt_stack.append(current_job)
                 current_job = arrived_job
             # Otherwise put it in a priority queue
             else:
                 arrival_queue.append(arrived_job)
+                # Sort again to maintain priority
                 arrival_queue.sort(key=lambda x: x.priority)
 
+        # Update the buffer for the current job, and increment time
         current_job.update()
         time += 1
+
+        # If the job finished, find the next one with the following priority: previously preempt,
+        # priority from arrival queue, or lastly skipping time to the next arriving job
         if current_job.finished:
-            print("Time{0}, ".format(time - 1), end='')
+            print("Time {0}, ".format(time - 1), end='')
             current_job.print_buffer()
             if len(preempt_stack) > 0:
                 current_job = preempt_stack.pop()
+                print("Time {0}, Resuming Preempt T{1}".format(time, current_job.type))
             elif len(arrival_queue) > 0:
                 current_job = arrival_queue.pop()
             else:
@@ -124,19 +144,24 @@ def process_jobs(jobs):
                 time = current_job.arrival_time
 
 
+# Check if a job can preempt another
 def check_preempt(arrival, current):
+    # Type 1 jobs can preempt type 2
     if arrival.type == 1 and current.type == 2:
         return True
+    # Type 2 jobs can preempt type 3
     elif arrival.type == 2 and current.type == 3:
         return True
+    # Otherwise, let the current job continue
     else:
         return False
 
 
+# Create some jobs to process
 def main():
     # Predefined job sequence
     jobs = [(1, 3), (3, 2), (6, 3), (8, 1), (10, 2), (12, 3), (26, 1)]
-    print('Starting job sequence: {0}'.format(jobs))
+    print('Starting predefined job sequence: {0}'.format(jobs))
     process_jobs(jobs)
 
     # Random job sequence
