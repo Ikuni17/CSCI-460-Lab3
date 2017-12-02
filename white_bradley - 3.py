@@ -86,6 +86,8 @@ def random_jobs(n, max_arrival):
 def process_jobs(jobs):
     # T1 and T3 buffer
     buffer = [0, 0, 0]
+    # Keep track of the status of the buffer
+    buffer_lock = False
     # Beginning stack of all jobs, the type: comment below is for IDE code completion
     job_stack = []  # type: list[Job]
     # Jobs which are preempt are pushed onto this stack
@@ -103,6 +105,8 @@ def process_jobs(jobs):
     # Skip to the first job's arrival time
     current_job = job_stack.pop()
     time = current_job.arrival_time
+    if current_job.type == 1 or current_job.type == 3:
+        buffer_lock = True
 
     # Make sure all jobs are completed before exiting
     while len(job_stack) > 0 or len(preempt_stack) > 0 or len(arrival_queue) > 0:
@@ -111,7 +115,7 @@ def process_jobs(jobs):
             # Temporarily keep the arrived job available
             arrived_job = job_stack.pop()
             # Check if the arrived job can preempt the current job
-            if check_preempt(arrived_job, current_job):
+            if check_preempt(arrived_job, current_job, buffer_lock):
                 # Print the current buffer before preempting
                 print("Time {0}, Preempting T{1} with T{2}, Buffer: ".format(time, current_job.type, arrived_job.type),
                       end='')
@@ -127,12 +131,11 @@ def process_jobs(jobs):
 
         # Update the buffer for the current job, and increment time
         current_job.update()
-        time += 1
 
         # If the job finished, find the next one with the following priority: previously preempt,
         # priority from arrival queue, or lastly skipping time to the next arriving job
         if current_job.finished:
-            print("Time {0}, ".format(time - 1), end='')
+            print("Time {0}, ".format(time), end='')
             current_job.print_buffer()
             if len(preempt_stack) > 0:
                 current_job = preempt_stack.pop()
@@ -143,11 +146,18 @@ def process_jobs(jobs):
                 current_job = job_stack.pop()
                 time = current_job.arrival_time
 
+            if current_job.type == 1 or current_job.type == 3:
+                buffer_lock = True
+            else:
+                buffer_lock = False
+
+        time += 1
+
 
 # Check if a job can preempt another
-def check_preempt(arrival, current):
+def check_preempt(arrival, current, buffer_lock):
     # Type 1 jobs can preempt type 2
-    if arrival.type == 1 and current.type == 2:
+    if arrival.type == 1 and current.type == 2 and buffer_lock == False:
         return True
     # Type 2 jobs can preempt type 3
     elif arrival.type == 2 and current.type == 3:
